@@ -850,6 +850,9 @@
                     if ('serviceWorker' in navigator && firebase.messaging.isSupported()) {
                         const messaging = firebase.messaging();
                         navigator.serviceWorker.register('/firebase-messaging-sw.js')
+                            .then(() => {
+                                return navigator.serviceWorker.ready;
+                            })
                             .then((registration) => {
                                 return messaging.getToken({ 
                                     vapidKey: "BBc3yOuScOjbwsZBfRgvZAf2gARSsQUPiPO6ZoxTqWuShqLGpY-60NbeGYbGhS3agHvhMkgedr5FzaIabmaFZnE",
@@ -860,11 +863,11 @@
                                 if (token && currentUser) {
                                     db.ref(`deviceTokens/${currentUser}`).set(token);
                                 }
-                                alert('✅ Mitteilungen erfolgreich auf deinem iPad aktiviert!');
+                                alert('✅ Mitteilungen & FCM Token erfolgreich auf deinem iPad aktiviert!');
                             })
                             .catch((err) => {
                                 console.error('Push Token Fehler:', err);
-                                alert('Mitteilungen erlaubt! (FCM Token konnte im Hintergrund nicht registriert werden)');
+                                alert('Token Fehler: ' + err.message);
                             });
                     } else {
                         alert('✅ Mitteilungen auf diesem Gerät erlaubt!');
