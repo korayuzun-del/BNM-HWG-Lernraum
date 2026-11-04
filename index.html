@@ -746,7 +746,26 @@
 
         window.onload = function() {
             if (window.lucide) lucide.createIcons();
-
+// 🔔 Service Worker & Push-Token für FCM registrieren
+    if ('serviceWorker' in navigator && firebase.messaging.isSupported()) {
+        const messaging = firebase.messaging();
+        
+        navigator.serviceWorker.register('/firebase-messaging-sw.js')
+            .then((registration) => {
+                Notification.requestPermission().then((permission) => {
+                    if (permission === 'granted') {
+                        messaging.getToken({ 
+                            vapidKey: BBc3yOuScOjbwsZBfRgvZAf2gARSsQUPiPO6ZoxTqWuShqLGpY-60NbeGYbGhS3agHvhMkgedr5FzaIabmaFZnE
+                            serviceWorkerRegistration: registration 
+                        }).then((currentToken) => {
+                            if (currentToken && currentUser) {
+                                db.ref(`deviceTokens/${currentUser}`).set(currentToken);
+                            }
+                        });
+                    }
+                });
+            });
+    }
             db.ref('passwords').on('value', snap => {
                 userPasswords = snap.val() || {};
                 renderProfile();
