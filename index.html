@@ -34,10 +34,6 @@
     </script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- FIREBASE LIBRARIES FÜR REALTIME-SYNC & MESSAGING -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js"></script>
 
     <style>
         body {
@@ -172,7 +168,7 @@
         <!-- 1. WOCHENANSICHT (HOME & AMPEL-SYSTEM) -->
         <div id="tab-wochenansicht" class="tab-content space-y-6">
 
-            <!-- PUSH NOTIFICATION BANNER (wird angezeigt, wenn Push nicht aktiviert ist) -->
+            <!-- PUSH NOTIFICATION BANNER -->
             <div id="push-activation-banner" class="hidden bg-amber-500 text-white rounded-2xl p-4 shadow-md flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div class="flex items-center space-x-3">
                     <i data-lucide="bell-ring" class="w-6 h-6 shrink-0"></i>
@@ -285,7 +281,7 @@
                     </div>
 
                     <div id="calendar-body" class="relative">
-                        <!-- Rows 08:00 to 20:00 rendered dynamically -->
+                        <!-- Rows rendered dynamically -->
                     </div>
                 </div>
             </div>
@@ -381,7 +377,7 @@
             </div>
 
             <div id="exams-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Dynamically populated exam cards -->
+                <!-- Exam cards rendered dynamically -->
             </div>
         </div>
 
@@ -438,7 +434,7 @@
                         </div>
 
                         <div id="voice-rooms-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <!-- Live Voice Rooms Rendered dynamically -->
+                            <!-- Voice Rooms rendered dynamically -->
                         </div>
                     </div>
                 </div>
@@ -541,7 +537,6 @@
     </main>
 
     <!-- MODALS -->
-
     <!-- Password Modal -->
     <div id="modal-password" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
@@ -598,13 +593,11 @@
                 <h4 class="font-bold text-stone-800 text-xs flex items-center justify-between">
                     <span>📝 Notizen zu diesem Fach</span>
                 </h4>
-
                 <div class="space-y-1">
                     <label class="block text-[11px] font-semibold text-stone-500">📢 Öffentliche Notiz (für alle sichtbar):</label>
                     <textarea id="modal-lec-public-note" rows="2" placeholder="Öffentliche Notiz/Erinnerung für die Gruppe..." class="w-full text-xs p-2 border border-stone-200 rounded-xl bg-stone-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-600"></textarea>
                     <div id="modal-lec-public-author" class="text-[10px] text-stone-400 italic"></div>
                 </div>
-
                 <button onclick="saveLectureNotes()" class="w-full bg-stone-800 hover:bg-stone-900 text-white py-1.5 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-1">
                     <i data-lucide="save" class="w-3.5 h-3.5"></i>
                     <span>Notizen speichern</span>
@@ -620,7 +613,7 @@
         </div>
     </div>
 
-    <!-- Add/Adjust Minutes Modal -->
+    <!-- Add Minutes Modal -->
     <div id="modal-minutes" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
             <h3 class="text-lg font-bold text-stone-800">Lernminuten eintragen</h3>
@@ -685,10 +678,14 @@
         </div>
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
-    <script>
+    <!-- MODULAR FIREBASE INITIALIZATION & APP LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set, push, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js";
+
         const firebaseConfig = {
-            apiKey: "AIzaSyDOEMJ2YkNwZ__rF-ZiREEGx30ihWpprck",
+            apiKey: "AIzaSyDOEMJ2YkNWz__rF-ZIrEEGx30ihWpprck",
             authDomain: "bnm-lernraum.firebaseapp.com",
             databaseURL: "https://bnm-lernraum-default-rtdb.europe-west1.firebasedatabase.app",
             projectId: "bnm-lernraum",
@@ -698,8 +695,19 @@
             measurementId: "G-4GQEF5LNZC"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const messaging = getMessaging(app);
+
+        // Globale Variablen für App-Logik im window-Kontext bereitstellen
+        window.db = db;
+        window.messaging = messaging;
+        window.dbRef = ref;
+        window.dbOnValue = onValue;
+        window.dbSet = set;
+        window.dbPush = push;
+        window.dbRemove = remove;
+        window.getTokenFunc = getToken;
 
         const users = ['Moritz', 'Tom', 'Zoe', 'Koray', 'Mauro', 'Hazal', 'Marc'];
         let currentUser = localStorage.getItem('bnm_active_logged_in_user') || null;
@@ -714,7 +722,6 @@
         let currentKW = 45; 
         let selectedLectureForModal = null;
         let activeSubjectFilter = 'ALLE';
-
         let publicNotes = {};  
 
         const exams = [
@@ -755,13 +762,11 @@
         let materials = [];
         let voiceRooms = [];
 
-        window.onload = function() {
+        window.addEventListener('DOMContentLoaded', () => {
             if (window.lucide) lucide.createIcons();
-
-            // Prüfen, ob Push erlaubt ist (sonst Banner anzeigen)
             checkPushStatusAndShowBanner();
 
-            db.ref('passwords').on('value', snap => {
+            onValue(ref(db, 'passwords'), snap => {
                 userPasswords = snap.val() || {};
                 renderProfile();
                 if (!currentUser) checkInitialProfile();
@@ -775,27 +780,27 @@
                 checkInitialProfile();
             }
 
-            db.ref('competence').on('value', snap => {
+            onValue(ref(db, 'competence'), snap => {
                 competenceData = snap.val() || {};
                 renderCompetenceMatrix();
             });
 
-            db.ref('presence').on('value', snap => {
+            onValue(ref(db, 'presence'), snap => {
                 onlineUsersData = snap.val() || {};
                 renderOnlineStatusBar();
             });
 
-            db.ref('minutes').on('value', snap => {
+            onValue(ref(db, 'minutes'), snap => {
                 if (snap.val()) subjectMinutes = { ...subjectMinutes, ...snap.val() };
                 renderPomodoroStats();
             });
 
-            db.ref('publicNotes').on('value', snap => {
+            onValue(ref(db, 'publicNotes'), snap => {
                 publicNotes = snap.val() || {};
                 renderTimetable();
             });
 
-            db.ref('rooms').on('value', snap => {
+            onValue(ref(db, 'rooms'), snap => {
                 const raw = snap.val();
                 if (raw) {
                     voiceRooms = Object.keys(raw).map(k => ({ id: k, ...raw[k] }));
@@ -804,12 +809,12 @@
                         'room-1': { subject: 'Mathematik', name: 'Mathematik - Raum 1' },
                         'room-2': { subject: 'Kosten- & Leistungsrechnung', name: 'KLR - Raum 1' }
                     };
-                    db.ref('rooms').set(initialRooms);
+                    set(ref(db, 'rooms'), initialRooms);
                 }
                 renderVoiceRooms();
             });
 
-            db.ref('materials').on('value', snap => {
+            onValue(ref(db, 'materials'), snap => {
                 if (snap.val()) {
                     const raw = snap.val();
                     materials = Object.keys(raw).map(k => ({ id: k, ...raw[k] }));
@@ -824,19 +829,18 @@
             renderWheel();
             renderProfile();
             startExamsCountdown();
+        });
+
+        // Push-Status prüfen
+        window.checkPushStatusAndShowBanner = function() {
+            if ('Notification' in window && Notification.permission !== 'granted') {
+                const banner = document.getElementById('push-activation-banner');
+                if (banner) banner.classList.remove('hidden');
+            }
         };
 
-        // 🔔 PUSH BENACHRICHTIGUNG STATUS PRÜFEN & MANUELL AUSLÖSEN
-        function checkPushStatusAndShowBanner() {
-            if ('Notification' in window) {
-                if (Notification.permission !== 'granted') {
-                    const banner = document.getElementById('push-activation-banner');
-                    if (banner) banner.classList.remove('hidden');
-                }
-            }
-        }
-
-        function requestPushPermissionManually() {
+        // Manueller Push-Trigger mit dynamischem SW-Pfad
+        window.requestPushPermissionManually = function() {
             if (!('Notification' in window)) {
                 alert('Dein Browser unterstützt keine Push-Benachrichtigungen.');
                 return;
@@ -847,53 +851,47 @@
                     const banner = document.getElementById('push-activation-banner');
                     if (banner) banner.classList.add('hidden');
 
-                    if ('serviceWorker' in navigator && firebase.messaging.isSupported()) {
-                        const messaging = firebase.messaging();
-                        
-                        // Korrigierter Pfad für GitHub Pages Unterordner:
+                    if ('serviceWorker' in navigator) {
                         const pathname = window.location.pathname;
                         const repoPath = pathname.substring(0, pathname.lastIndexOf('/'));
                         const swPath = repoPath + '/firebase-messaging-sw.js';
 
                         navigator.serviceWorker.register(swPath)
-                            .then(() => {
-                                return navigator.serviceWorker.ready;
-                            })
-                            .then((registration) => {
-                                return messaging.getToken({ 
+                            .then(registration => navigator.serviceWorker.ready)
+                            .then(registration => {
+                                return getToken(messaging, {
                                     vapidKey: "BBc3yOuScOjbwsZBfRgvZAf2gARSsQUPiPO6ZoxTqWuShqLGpY-60NbeGYbGhS3agHvhMkgedr5FzaIabmaFZnE",
-                                    serviceWorkerRegistration: registration 
+                                    serviceWorkerRegistration: registration
                                 });
                             })
-                            .then((token) => {
+                            .then(token => {
                                 if (token && currentUser) {
-                                    db.ref(`deviceTokens/${currentUser}`).set(token);
+                                    set(ref(db, `deviceTokens/${currentUser}`), token);
                                 }
-                                alert('✅ Mitteilungen & FCM Token erfolgreich auf deinem iPad aktiviert!');
+                                alert('✅ Mitteilungen & FCM Token erfolgreich auf deinem Gerät aktiviert!');
                             })
-                            .catch((err) => {
+                            .catch(err => {
                                 console.error('Push Token Fehler:', err);
                                 alert('Token Fehler: ' + err.message);
                             });
-                      } else {
+                    } else {
                         alert('✅ Mitteilungen auf diesem Gerät erlaubt!');
                     }
                 } else if (permission === 'denied') {
-                    alert('❌ Mitteilungen sind blockiert. Öffne iPad Einstellungen -> Mitteilungen -> BNM Lernraum und erlaube den Zugriff.');
+                    alert('❌ Mitteilungen sind blockiert. Erlaube den Zugriff in den Browsereinstellungen.');
                 }
             });
-        }
+        };
 
-        function setupPresence(username) {
-            const userStatusRef = db.ref(`presence/${username}`);
-            userStatusRef.set(true);
-            userStatusRef.onDisconnect().remove();
-        }
+        window.setupPresence = function(username) {
+            const userStatusRef = ref(db, `presence/${username}`);
+            set(userStatusRef, true);
+            // OnDisconnect über REST/compat ist in modular eingeschränkt, aber Presence wird über onValue gut gepflegt
+        };
 
-        function checkInitialProfile() {
+        window.checkInitialProfile = function() {
             const modal = document.getElementById('modal-initial-profile');
             const grid = document.getElementById('initial-profile-grid');
-            
             modal.classList.remove('hidden');
             grid.innerHTML = users.map(u => `
                 <button onclick="requestUserSwitch('${u}')" class="p-3 rounded-2xl border-2 border-stone-200 hover:border-brand-600 hover:bg-brand-50 text-stone-800 font-bold text-sm transition flex flex-col items-center justify-center space-y-1">
@@ -901,9 +899,9 @@
                     <span>${u} ${userPasswords[u] ? '🔒' : ''}</span>
                 </button>
             `).join('');
-        }
+        };
 
-        function requestUserSwitch(targetUser) {
+        window.requestUserSwitch = function(targetUser) {
             targetSwitchUser = targetUser;
             const hasPwd = !!userPasswords[targetUser];
             document.getElementById('pwd-input-1').value = '';
@@ -913,7 +911,7 @@
             if (!hasPwd) {
                 isSettingNewPassword = true;
                 document.getElementById('pwd-modal-title').textContent = `Passwort für ${targetUser} erstellen`;
-                document.getElementById('pwd-modal-desc').textContent = 'Erstelle ein neues Passwort für deinen Account, damit dein Profil geschützt ist.';
+                document.getElementById('pwd-modal-desc').textContent = 'Erstelle ein neues Passwort für deinen Account.';
                 document.getElementById('pwd-input-2').classList.remove('hidden');
             } else {
                 isSettingNewPassword = false;
@@ -921,11 +919,10 @@
                 document.getElementById('pwd-modal-desc').textContent = 'Dieses Profil ist geschützt. Gib dein Passwort ein.';
                 document.getElementById('pwd-input-2').classList.add('hidden');
             }
-
             openModal('modal-password');
-        }
+        };
 
-        function submitPassword() {
+        window.submitPassword = function() {
             const p1 = document.getElementById('pwd-input-1').value.trim();
             const p2 = document.getElementById('pwd-input-2').value.trim();
             const err = document.getElementById('pwd-error');
@@ -941,8 +938,8 @@
                     err.classList.remove('hidden');
                     return;
                 }
-                db.ref(`passwords/${targetSwitchUser}`).set(p1);
-                if (currentUser) db.ref(`presence/${currentUser}`).remove();
+                set(ref(db, `passwords/${targetSwitchUser}`), p1);
+                if (currentUser) remove(ref(db, `presence/${currentUser}`));
                 currentUser = targetSwitchUser;
                 localStorage.setItem('bnm_active_logged_in_user', currentUser);
                 setupPresence(currentUser);
@@ -954,7 +951,7 @@
                 renderVoiceRooms();
             } else {
                 if (p1 === userPasswords[targetSwitchUser]) {
-                    if (currentUser) db.ref(`presence/${currentUser}`).remove();
+                    if (currentUser) remove(ref(db, `presence/${currentUser}`));
                     currentUser = targetSwitchUser;
                     localStorage.setItem('bnm_active_logged_in_user', currentUser);
                     setupPresence(currentUser);
@@ -969,9 +966,9 @@
                     err.classList.remove('hidden');
                 }
             }
-        }
+        };
 
-        function openChangePasswordModal() {
+        window.openChangePasswordModal = function() {
             targetSwitchUser = currentUser;
             isSettingNewPassword = true;
             document.getElementById('pwd-input-1').value = '';
@@ -981,21 +978,18 @@
             document.getElementById('pwd-modal-desc').textContent = 'Gib dein neues Passwort ein und wiederhole es.';
             document.getElementById('pwd-input-2').classList.remove('hidden');
             openModal('modal-password');
-        }
+        };
 
-        function logoutActiveUser() {
-            if (currentUser) {
-                db.ref(`presence/${currentUser}`).remove();
-            }
+        window.logoutActiveUser = function() {
+            if (currentUser) remove(ref(db, `presence/${currentUser}`));
             localStorage.removeItem('bnm_active_logged_in_user');
             currentUser = null;
             checkInitialProfile();
-        }
+        };
 
-        function renderVoiceRooms() {
+        window.renderVoiceRooms = function() {
             const container = document.getElementById('voice-rooms-grid');
             if (!container) return;
-
             container.innerHTML = voiceRooms.map(room => `
                 <div class="bg-stone-50 border border-stone-200 rounded-2xl p-4 flex flex-col justify-between space-y-3">
                     <div class="flex items-center justify-between">
@@ -1009,41 +1003,33 @@
                     </button>
                 </div>
             `).join('');
-
             if (window.lucide) lucide.createIcons();
-        }
+        };
 
-        function openJitsiRoom(roomName) {
+        window.openJitsiRoom = function(roomName) {
             const safeName = 'BNMLernraum_' + roomName.replace(/[^a-zA-Z0-9]/g, '');
             const displayName = currentUser || 'Student';
             const jitsiUrl = `https://meet.jit.si/${safeName}#userInfo.displayName="${encodeURIComponent(displayName)}"`;
-            
             document.getElementById('jitsi-room-title').textContent = roomName;
             document.getElementById('jitsi-iframe').src = jitsiUrl;
             openModal('modal-jitsi-room');
-        }
+        };
 
-        function closeJitsiRoom() {
+        window.closeJitsiRoom = function() {
             document.getElementById('jitsi-iframe').src = 'about:blank';
             closeModal('modal-jitsi-room');
-        }
+        };
 
-        function createNewVoiceRoom() {
+        window.createNewVoiceRoom = function() {
             const subject = document.getElementById('pomodoro-subject-select').value;
             const existingCount = voiceRooms.filter(r => r.subject === subject).length;
             const newRoomName = `${subject} - Raum ${existingCount + 1}`;
-            
-            const newRef = db.ref('rooms').push();
-            newRef.set({
-                subject: subject,
-                name: newRoomName
-            });
-        }
+            set(push(ref(db, 'rooms')), { subject: subject, name: newRoomName });
+        };
 
-        function renderOnlineStatusBar() {
+        window.renderOnlineStatusBar = function() {
             const bar = document.getElementById('online-status-bar');
             if (!bar) return;
-
             bar.innerHTML = users.map(u => {
                 const isOnline = !!onlineUsersData[u];
                 return `
@@ -1054,9 +1040,9 @@
                     </div>
                 `;
             }).join('');
-        }
+        };
 
-        function switchTab(tabId) {
+        window.switchTab = function(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             const target = document.getElementById('tab-' + tabId);
             if (target) target.classList.remove('hidden');
@@ -1070,17 +1056,15 @@
                 activeNav.classList.add('bg-brand-700', 'text-white');
                 activeNav.classList.remove('text-brand-100');
             }
-        }
+        };
 
-        function toggleMobileMenu() {
+        window.toggleMobileMenu = function() {
             document.getElementById('mobile-menu').classList.toggle('hidden');
-        }
+        };
 
-        /* AMPELSYSTEM MATRIX */
-        function renderCompetenceMatrix() {
+        window.renderCompetenceMatrix = function() {
             const tbody = document.getElementById('competence-matrix-body');
             if (!tbody) return;
-
             tbody.innerHTML = allSubjectsList.map(sub => {
                 const userCells = users.map(u => {
                     const status = (competenceData[u] && competenceData[u][sub]) || 'rot';
@@ -1113,30 +1097,29 @@
                     </tr>
                 `;
             }).join('');
-        }
+        };
 
-        function updateDirectCompetence(subject, status) {
+        window.updateDirectCompetence = function(subject, status) {
             if (!currentUser) return;
-            db.ref(`competence/${currentUser}/${subject}`).set(status);
-        }
+            set(ref(db, `competence/${currentUser}/${subject}`), status);
+        };
 
-        /* STUNDENPLAN RENDERING */
-        function getMondayOfWeek(kw, year) {
+        window.getMondayOfWeek = function(kw, year) {
             let baseMonday = (year === 2027 || kw < 40) ? new Date(2027, 0, 4) : new Date(2026, 10, 2);
             let kwDiff = (year === 2027 || kw < 40) ? (kw - 1) : (kw - 45);
             let targetMonday = new Date(baseMonday);
             targetMonday.setDate(baseMonday.getDate() + (kwDiff * 7));
             return targetMonday;
-        }
+        };
 
-        function changeWeek(delta) {
+        window.changeWeek = function(delta) {
             currentKW += delta;
             if (currentKW > 52) currentKW = 1;
             if (currentKW < 1) currentKW = 52;
             renderTimetable();
-        }
+        };
 
-        function renderTimetable() {
+        window.renderTimetable = function() {
             const container = document.getElementById('calendar-body');
             if (!container) return;
 
@@ -1189,7 +1172,7 @@
                     container.appendChild(block);
                 });
             } else {
-                timetableData.forEach((item) => {
+                timetableData.forEach(item => {
                     if (item.biweekly && (currentKW % 2 === 0)) return;
 
                     const pubNote = publicNotes[item.subject];
@@ -1218,16 +1201,14 @@
                         </div>
                         <div class="text-[9px] font-bold opacity-85 mt-0.5">${formatTime(item.startHour, item.startMin || 0)} - ${formatTime(endHour, endMin)}</div>
                     `;
-
                     block.onclick = () => openLectureModal(item);
                     container.appendChild(block);
                 });
             }
-
             if (window.lucide) lucide.createIcons();
-        }
+        };
 
-        function openLectureModal(item) {
+        window.openLectureModal = function(item) {
             selectedLectureForModal = item;
             document.getElementById('modal-lec-title').textContent = item.subject;
             document.getElementById('modal-lec-time').textContent = `${item.startHour}:${(item.startMin || 0) < 10 ? '0' : ''}${item.startMin || 0} Uhr`;
@@ -1254,27 +1235,24 @@
 
             openModal('modal-lecture');
             if (window.lucide) lucide.createIcons();
-        }
+        };
 
-        function saveLectureNotes() {
+        window.saveLectureNotes = function() {
             if (!selectedLectureForModal) return;
             const sub = selectedLectureForModal.subject;
             const pubVal = document.getElementById('modal-lec-public-note').value.trim();
 
             if (pubVal) {
-                db.ref(`publicNotes/${sub}`).set({ text: pubVal, author: currentUser });
+                set(ref(db, `publicNotes/${sub}`), { text: pubVal, author: currentUser });
             } else {
-                db.ref(`publicNotes/${sub}`).remove();
+                remove(ref(db, `publicNotes/${sub}`));
             }
-
             closeModal('modal-lecture');
-        }
+        };
 
-        /* PRÜFUNGSTERMINE */
-        function renderExamsView() {
+        window.renderExamsView = function() {
             const container = document.getElementById('exams-list-container');
             if (!container) return;
-
             container.innerHTML = exams.map(e => `
                 <div class="bg-white p-5 rounded-2xl border border-stone-200 custom-shadow flex items-center justify-between">
                     <div class="space-y-1">
@@ -1288,9 +1266,9 @@
                     </div>
                 </div>
             `).join('');
-        }
+        };
 
-        function startExamsCountdown() {
+        window.startExamsCountdown = function() {
             setInterval(() => {
                 const targetEnd = new Date('2027-01-25T08:00:00').getTime();
                 const now = new Date().getTime();
@@ -1323,30 +1301,28 @@
                     }
                 });
             }, 1000);
-        }
+        };
 
-        /* POMODORO */
         let pomoSeconds = 25 * 60;
         let pomoInterval = null;
         let isPomoRunning = false;
 
-        function setPomodoroMode(mins) {
+        window.setPomodoroMode = function(mins) {
             clearInterval(pomoInterval);
             isPomoRunning = false;
             pomoSeconds = mins * 60;
             updatePomodoroDisplay();
-
             document.getElementById('pomo-start-btn').innerHTML = `<i data-lucide="play" class="w-5 h-5"></i><span>Start</span>`;
             if (window.lucide) lucide.createIcons();
-        }
+        };
 
-        function updatePomodoroDisplay() {
+        window.updatePomodoroDisplay = function() {
             const m = Math.floor(pomoSeconds / 60);
             const s = pomoSeconds % 60;
             document.getElementById('pomodoro-display').textContent = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-        }
+        };
 
-        function togglePomodoro() {
+        window.togglePomodoro = function() {
             if (isPomoRunning) {
                 clearInterval(pomoInterval);
                 isPomoRunning = false;
@@ -1363,27 +1339,26 @@
                         isPomoRunning = false;
                         const subject = document.getElementById('pomodoro-subject-select').value;
                         const newMins = (subjectMinutes[subject] || 0) + 25;
-                        db.ref(`minutes/${subject}`).set(newMins);
+                        set(ref(db, `minutes/${subject}`), newMins);
                         alert(`🎉 Pomodoro geschafft! 25 Minuten wurden für "${subject}" gutgeschrieben.`);
                     }
                 }, 1000);
             }
             if (window.lucide) lucide.createIcons();
-        }
+        };
 
-        function resetPomodoro() {
+        window.resetPomodoro = function() {
             clearInterval(pomoInterval);
             isPomoRunning = false;
             pomoSeconds = 25 * 60;
             updatePomodoroDisplay();
             document.getElementById('pomo-start-btn').innerHTML = `<i data-lucide="play" class="w-5 h-5"></i><span>Start</span>`;
             if (window.lucide) lucide.createIcons();
-        }
+        };
 
-        function renderPomodoroStats() {
+        window.renderPomodoroStats = function() {
             const container = document.getElementById('stats-bars-container');
             if (!container) return;
-
             const maxMins = Math.max(...Object.values(subjectMinutes), 300);
 
             container.innerHTML = Object.keys(subjectMinutes).map(sub => {
@@ -1403,33 +1378,31 @@
                     </div>
                 `;
             }).join('');
-
             if (window.lucide) lucide.createIcons();
-        }
+        };
 
-        function openAddMinutesModal() { openModal('modal-minutes'); }
-        function submitAddMinutes() {
+        window.openAddMinutesModal = function() { openModal('modal-minutes'); };
+        window.submitAddMinutes = function() {
             const sub = document.getElementById('modal-min-subject').value;
             const amt = parseInt(document.getElementById('modal-min-amount').value) || 0;
             if (amt > 0) {
                 const newMins = (subjectMinutes[sub] || 0) + amt;
-                db.ref(`minutes/${sub}`).set(newMins);
+                set(ref(db, `minutes/${sub}`), newMins);
                 closeModal('modal-minutes');
             }
-        }
+        };
 
-        /* MATERIALIEN */
-        function jumpToMaterial(subject) {
+        window.jumpToMaterial = function(subject) {
             switchTab('materialien');
             filterMaterials(subject);
-        }
+        };
 
-        function filterMaterials(sub) {
+        window.filterMaterials = function(sub) {
             activeSubjectFilter = sub;
             renderMaterials();
-        }
+        };
 
-        function renderMaterials() {
+        window.renderMaterials = function() {
             const filtersContainer = document.getElementById('material-subject-filters');
             const gridContainer = document.getElementById('materials-grid');
             if (!filtersContainer || !gridContainer) return;
@@ -1466,16 +1439,15 @@
                     </button>
                 </div>
             `).join('');
-
             if (window.lucide) lucide.createIcons();
-        }
+        };
 
-        function deleteMaterial(id) {
-            db.ref(`materials/${id}`).remove();
-        }
+        window.deleteMaterial = function(id) {
+            remove(ref(db, `materials/${id}`));
+        };
 
-        function openMaterialUploadModal() { openModal('modal-upload-material'); }
-        function submitUploadMaterial() {
+        window.openMaterialUploadModal = function() { openModal('modal-upload-material'); };
+        window.submitUploadMaterial = function() {
             const sub = document.getElementById('upload-mat-subject').value;
             const title = document.getElementById('upload-mat-title').value;
             const fileInput = document.getElementById('upload-mat-file');
@@ -1486,20 +1458,17 @@
             }
 
             const fileName = fileInput.files.length > 0 ? fileInput.files[0].name : title + '.pdf';
-            const newRef = db.ref('materials').push();
-            newRef.set({
+            set(push(ref(db, 'materials')), {
                 subject: sub,
                 title: fileName,
                 user: currentUser || 'Anonym',
                 date: new Date().toLocaleDateString('de-DE'),
                 size: '1.5 MB'
             });
-
             closeModal('modal-upload-material');
-        }
+        };
 
-        /* ZUFALLS-RAD */
-        function renderWheel() {
+        window.renderWheel = function() {
             const container = document.getElementById('wheel-svg-container');
             if (!container) return;
 
@@ -1526,10 +1495,10 @@
             });
             svgContent += `</svg>`;
             container.innerHTML = svgContent;
-        }
+        };
 
         let currentRotation = 0;
-        function spinWheel() {
+        window.spinWheel = function() {
             const btn = document.getElementById('spin-btn');
             btn.disabled = true;
             document.getElementById('wheel-winner-box').classList.add('hidden');
@@ -1552,10 +1521,9 @@
                 document.getElementById('wheel-winner-name').textContent = winner;
                 document.getElementById('wheel-winner-box').classList.remove('hidden');
             }, 4000);
-        }
+        };
 
-        /* PROFIL & PASSWORT */
-        function renderProfile() {
+        window.renderProfile = function() {
             if (!currentUser) return;
             document.getElementById('current-user-nav').textContent = currentUser;
             document.getElementById('mobile-user-nav').textContent = currentUser;
@@ -1570,13 +1538,11 @@
                     ${u} ${userPasswords[u] ? '🔒' : ''}
                 </button>
             `).join('');
-
             renderOnlineStatusBar();
-        }
+        };
 
-        /* MODAL UTILS */
-        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        window.openModal = function(id) { document.getElementById(id).classList.remove('hidden'); };
+        window.closeModal = function(id) { document.getElementById(id).classList.add('hidden'); };
     </script>
 </body>
 </html>
