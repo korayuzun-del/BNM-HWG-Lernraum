@@ -849,7 +849,13 @@
 
                     if ('serviceWorker' in navigator && firebase.messaging.isSupported()) {
                         const messaging = firebase.messaging();
-                        navigator.serviceWorker.register('/firebase-messaging-sw.js')
+                        
+                        // Korrigierter Pfad für GitHub Pages Unterordner:
+                        const pathname = window.location.pathname;
+                        const repoPath = pathname.substring(0, pathname.lastIndexOf('/'));
+                        const swPath = repoPath + '/firebase-messaging-sw.js';
+
+                        navigator.serviceWorker.register(swPath)
                             .then(() => {
                                 return navigator.serviceWorker.ready;
                             })
@@ -869,7 +875,7 @@
                                 console.error('Push Token Fehler:', err);
                                 alert('Token Fehler: ' + err.message);
                             });
-                    } else {
+                      } else {
                         alert('✅ Mitteilungen auf diesem Gerät erlaubt!');
                     }
                 } else if (permission === 'denied') {
