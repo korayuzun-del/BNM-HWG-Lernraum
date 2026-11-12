@@ -722,7 +722,7 @@
 
         <!-- FOOTER WITH VERSION -->
         <footer class="w-full pt-6 pb-2 text-right">
-            <span class="text-[11px] text-stone-400 font-medium tracking-wide">Version 1.5</span>
+            <span class="text-[11px] text-stone-400 font-medium tracking-wide">Version 1.6</span>
         </footer>
 
     </main>
@@ -895,7 +895,7 @@
                     <input type="text" id="upload-mat-title" placeholder="z. B. Zusammenfassung Kap. 3" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-stone-500 mb-1">Datei auswählen (PDF, Doc, Image):</label>
+                    <label class="block text-xs font-semibold text-stone-500 mb-1">Datei auswählen (Alle Formate erlaubt):</label>
                     <input type="file" id="upload-mat-file" class="w-full border border-stone-300 rounded-xl px-3 py-1.5 text-xs text-stone-600">
                 </div>
             </div>
@@ -932,7 +932,7 @@
                     <input type="text" id="upload-exam-semester" placeholder="z. B. WS 2025/26" class="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-stone-500 mb-1">Klausur-Datei auswählen (PDF):</label>
+                    <label class="block text-xs font-semibold text-stone-500 mb-1">Klausur-Datei auswählen (Alle Formate erlaubt):</label>
                     <input type="file" id="upload-exam-file" class="w-full border border-stone-300 rounded-xl px-3 py-1.5 text-xs text-stone-600">
                 </div>
             </div>
@@ -1099,7 +1099,7 @@
                     const raw = snap.val();
                     pastExams = Object.keys(raw).map(k => ({ id: k, ...raw[k] }));
                 } else {
-                    pastExams = []; // Komplett leer, damit keine alten Dummy-Dateien erzwingend geladen werden
+                    pastExams = [];
                 }
                 renderPastExams();
             });
@@ -1850,26 +1850,35 @@
             const ex = pastExams.find(e => e.id === id);
             if (!ex) return;
 
-            if (ex.fileData) {
-                const a = document.createElement('a');
-                a.href = ex.fileData;
-                a.download = ex.title;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+            let blob;
+            if (ex.fileData && ex.fileData.startsWith('data:')) {
+                // Base64-String sauber in ein Blob-Objekt umwandeln
+                try {
+                    const parts = ex.fileData.split(',');
+                    const mimeMatch = parts[0].match(/:(.*?);/);
+                    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+                    const bstr = atob(parts[1]);
+                    let n = bstr.length;
+                    const u8arr = new Uint8Array(n);
+                    while (n--) {
+                        u8arr[n] = bstr.charCodeAt(n);
+                    }
+                    blob = new Blob([u8arr], { type: mime });
+                } catch (err) {
+                    blob = new Blob([`Altklausur: ${ex.subject} (${ex.semester})`], { type: 'text/plain' });
+                }
             } else {
-                // Generiert einen sauberen PDF-Blob als funktionierender Download-Fallback
-                const pdfDummyContent = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<<>>/Contents 4 0 R>>endobj 4 0 obj<</Length 54>>stream\nBT /F1 12 Tf 50 750 Td (Altklausur: ${ex.subject} (${ex.semester})) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000057 00000 n \n0000000114 00000 n \n0000000213 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n312\n%%EOF`;
-                const blob = new Blob([pdfDummyContent], { type: 'application/pdf' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = ex.title.endsWith('.pdf') ? ex.title : ex.title + '.pdf';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                blob = new Blob([`Altklausur & Musterlösung für ${ex.subject} (${ex.semester})`], { type: 'text/plain;charset=utf-8' });
             }
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = ex.title || 'Altklausur.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
         };
 
         window.deletePastExam = function(id) {
@@ -1962,25 +1971,35 @@
             const mat = materials.find(m => m.id === id);
             if (!mat) return;
 
-            if (mat.fileData) {
-                const a = document.createElement('a');
-                a.href = mat.fileData;
-                a.download = mat.title;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+            let blob;
+            if (mat.fileData && mat.fileData.startsWith('data:')) {
+                // Base64-String sauber in ein Blob-Objekt umwandeln für alle Formate (PDF, Bilder, Docs, etc.)
+                try {
+                    const parts = mat.fileData.split(',');
+                    const mimeMatch = parts[0].match(/:(.*?);/);
+                    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+                    const bstr = atob(parts[1]);
+                    let n = bstr.length;
+                    const u8arr = new Uint8Array(n);
+                    while (n--) {
+                        u8arr[n] = bstr.charCodeAt(n);
+                    }
+                    blob = new Blob([u8arr], { type: mime });
+                } catch (err) {
+                    blob = new Blob([`Material: ${mat.subject} - ${mat.title}`], { type: 'text/plain' });
+                }
             } else {
-                const pdfDummyContent = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R/Resources<<>>/Contents 4 0 R>>endobj 4 0 obj<</Length 54>>stream\nBT /F1 12 Tf 50 750 Td (Material: ${mat.subject} - ${mat.title}) Tj ET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000057 00000 n \n0000000114 00000 n \n0000000213 00000 n \ntrailer<</Size 5/Root 1 0 R>>\nstartxref\n312\n%%EOF`;
-                const blob = new Blob([pdfDummyContent], { type: 'application/pdf' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = mat.title.endsWith('.pdf') ? mat.title : mat.title + '.pdf';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                blob = new Blob([`Dies ist eine Beispieldatei für das Fach ${mat.subject}: ${mat.title}`], { type: 'text/plain;charset=utf-8' });
             }
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = mat.title || 'Material.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
         };
 
         window.deleteMaterial = function(id) {
@@ -2087,7 +2106,7 @@
             document.getElementById('current-user-nav').textContent = currentUser;
             document.getElementById('mobile-user-nav').textContent = currentUser;
             document.getElementById('profile-name-title').textContent = currentUser;
-            document.getElementById('profile-avatar-letters').textContent = currentUser.substring(0, 2).toUpperCase();
+            document.getElementById('profile-avatar-letters').textContent = currentUser.substring(2).toUpperCase();
 
             const buttonsContainer = document.getElementById('profile-switch-buttons');
             if (!buttonsContainer) return;
