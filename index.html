@@ -722,7 +722,7 @@
 
         <!-- FOOTER WITH VERSION -->
         <footer class="w-full pt-6 pb-2 text-right">
-            <span class="text-[11px] text-stone-400 font-medium tracking-wide">Version 1.6</span>
+            <span class="text-[11px] text-stone-400 font-medium tracking-wide">Version 1.7</span>
         </footer>
 
     </main>
@@ -1808,6 +1808,38 @@
             renderPastExams();
         };
 
+        // Universeller Download-Helfer ohne data:-URL-Limitierungen
+        function downloadFileFromData(fileData, fallbackText, filename, defaultMime) {
+            let blob;
+            if (fileData && typeof fileData === 'string' && fileData.startsWith('data:')) {
+                try {
+                    const parts = fileData.split(',');
+                    const mimeMatch = parts[0].match(/:(.*?);/);
+                    const mime = mimeMatch ? mimeMatch[1] : defaultMime;
+                    const bstr = atob(parts[1]);
+                    let n = bstr.length;
+                    const u8arr = new Uint8Array(n);
+                    while (n--) {
+                        u8arr[n] = bstr.charCodeAt(n);
+                    }
+                    blob = new Blob([u8arr], { type: mime });
+                } catch (err) {
+                    blob = new Blob([fallbackText], { type: defaultMime });
+                }
+            } else {
+                blob = new Blob([fallbackText], { type: defaultMime });
+            }
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename || 'Download';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
         window.renderPastExams = function() {
             const gridContainer = document.getElementById('exams-grid');
             const countBadge = document.getElementById('exam-count-badge');
@@ -1849,36 +1881,7 @@
         window.downloadPastExam = function(id) {
             const ex = pastExams.find(e => e.id === id);
             if (!ex) return;
-
-            let blob;
-            if (ex.fileData && ex.fileData.startsWith('data:')) {
-                // Base64-String sauber in ein Blob-Objekt umwandeln
-                try {
-                    const parts = ex.fileData.split(',');
-                    const mimeMatch = parts[0].match(/:(.*?);/);
-                    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-                    const bstr = atob(parts[1]);
-                    let n = bstr.length;
-                    const u8arr = new Uint8Array(n);
-                    while (n--) {
-                        u8arr[n] = bstr.charCodeAt(n);
-                    }
-                    blob = new Blob([u8arr], { type: mime });
-                } catch (err) {
-                    blob = new Blob([`Altklausur: ${ex.subject} (${ex.semester})`], { type: 'text/plain' });
-                }
-            } else {
-                blob = new Blob([`Altklausur & Musterlösung für ${ex.subject} (${ex.semester})`], { type: 'text/plain;charset=utf-8' });
-            }
-
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = ex.title || 'Altklausur.pdf';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            downloadFileFromData(ex.fileData, `Altklausur & Musterlösung für ${ex.subject} (${ex.semester})`, ex.title || 'Altklausur.pdf', 'application/pdf');
         };
 
         window.deletePastExam = function(id) {
@@ -1970,36 +1973,7 @@
         window.downloadMaterial = function(id) {
             const mat = materials.find(m => m.id === id);
             if (!mat) return;
-
-            let blob;
-            if (mat.fileData && mat.fileData.startsWith('data:')) {
-                // Base64-String sauber in ein Blob-Objekt umwandeln für alle Formate (PDF, Bilder, Docs, etc.)
-                try {
-                    const parts = mat.fileData.split(',');
-                    const mimeMatch = parts[0].match(/:(.*?);/);
-                    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
-                    const bstr = atob(parts[1]);
-                    let n = bstr.length;
-                    const u8arr = new Uint8Array(n);
-                    while (n--) {
-                        u8arr[n] = bstr.charCodeAt(n);
-                    }
-                    blob = new Blob([u8arr], { type: mime });
-                } catch (err) {
-                    blob = new Blob([`Material: ${mat.subject} - ${mat.title}`], { type: 'text/plain' });
-                }
-            } else {
-                blob = new Blob([`Dies ist eine Beispieldatei für das Fach ${mat.subject}: ${mat.title}`], { type: 'text/plain;charset=utf-8' });
-            }
-
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = mat.title || 'Material.pdf';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            downloadFileFromData(mat.fileData, `Material: ${mat.subject} - ${mat.title}`, mat.title || 'Material.pdf', 'application/octet-stream');
         };
 
         window.deleteMaterial = function(id) {
@@ -2106,7 +2080,7 @@
             document.getElementById('current-user-nav').textContent = currentUser;
             document.getElementById('mobile-user-nav').textContent = currentUser;
             document.getElementById('profile-name-title').textContent = currentUser;
-            document.getElementById('profile-avatar-letters').textContent = currentUser.substring(2).toUpperCase();
+            document.getElementById('profile-avatar-letters').textContent = currentUser.substring(0, 2).toUpperCase();
 
             const buttonsContainer = document.getElementById('profile-switch-buttons');
             if (!buttonsContainer) return;
